@@ -1,0 +1,18 @@
+services:
+  markitdown-workbench:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: "3.13"
+        MARKITDOWN_EXTRAS: "all"
+        INSTALL_MEDIA_TOOLS: "true"
+    image: markitdown-workbench:local
+    ports:
+      - "8765:8765"
+    env_file:
+      - .env
+    environment:
+      MARKITDOWN_HOST: "0.0.0.0"
+      MARKITDOWN_PORT: "8765"
+    restart: unless-stopped

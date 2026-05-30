@@ -87,6 +87,91 @@ The UI lets you:
 
 Architecture diagrams are in `mermaid.md`.
 
+## Docker
+
+Build the local UI image:
+
+```bash
+docker build -t markitdown-workbench:local .
+```
+
+Run it:
+
+```bash
+docker run --rm -p 8765:8765 --env-file .env markitdown-workbench:local
+```
+
+Or use Compose:
+
+```bash
+cp .env.example .env
+docker compose up --build
+```
+
+Open:
+
+```text
+http://127.0.0.1:8765/
+```
+
+Smaller image options:
+
+```bash
+# Keep common document support but skip broad [all] extras.
+docker build \
+  --build-arg MARKITDOWN_EXTRAS=pdf,docx,pptx,xlsx \
+  -t markitdown-workbench:docs .
+
+# Skip ffmpeg/exiftool OS packages.
+docker build \
+  --build-arg INSTALL_MEDIA_TOOLS=false \
+  -t markitdown-workbench:small .
+
+# Core package only, smallest but fewer formats.
+docker build \
+  --build-arg MARKITDOWN_EXTRAS= \
+  --build-arg INSTALL_MEDIA_TOOLS=false \
+  -t markitdown-workbench:core .
+```
+
+The Dockerfile uses `python:3.13-slim-bookworm`, not Alpine. Alpine is small, but MarkItDown's Magika/ONNX and several document dependencies rely on glibc/manylinux wheels. Alpine often forces source builds or fails on musl-based images, which can make the build slower, larger, or less reliable.
+
+To pin Debian package versions, pass exact versions available from the selected Debian repository:
+
+```bash
+docker build \
+  --build-arg 'APT_MEDIA_PACKAGES=ffmpeg=7:5.1.6-0+deb12u1 libimage-exiftool-perl=12.57+dfsg-1' \
+  -t markitdown-workbench:pinned .
+```
+
+Only pin versions that exist in the base image repository at build time.
+
+### Online Deployment
+
+Do not bake secrets into the image. Keep `OPENAI_API_KEY`, Azure credentials, and plugin flags as runtime environment variables.
+
+Typical flow:
+
+```bash
+docker build -t your-registry/markitdown-workbench:latest .
+docker push your-registry/markitdown-workbench:latest
+```
+
+Then configure environment variables in the hosting provider dashboard or secret manager:
+
+```text
+OPENAI_API_KEY
+EXIFTOOL_PATH
+AZURE_CLIENT_ID
+AZURE_TENANT_ID
+AZURE_CLIENT_SECRET
+MARKITDOWN_ENABLE_PLUGINS
+MARKITDOWN_HOST=0.0.0.0
+MARKITDOWN_PORT=8765
+```
+
+For public deployments, add authentication in front of the app before exposing it. MarkItDown can read uploaded files, fetch URLs, and process data with the permissions of the container, so do not expose an unauthenticated instance to the internet.
+
 ## Command Line Usage
 
 Convert a local file:

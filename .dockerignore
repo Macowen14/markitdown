@@ -1,2 +1,28 @@
-*
-!packages/
+.git
+.agents
+.codex
+.github
+.devcontainer
+.venv
+.venv313
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+.coverage
+.env
+*.log
+dist
+build
+*.egg-info
+htmlcov
+.DS_Store
+
+# Keep the image build context focused. Dockerfile copies only these runtime
+# paths explicitly: packages/markitdown, examples, README.md, LICENSE,
+# requirements.txt.
+packages/markitdown/tests
+packages/markitdown-mcp
+packages/markitdown-ocr
+packages/markitdown-sample-plugin
