@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MarkItDown Quick UI</title>
+  <link rel="icon" href="/favicon.ico">
+  <link rel="stylesheet" href="{{ url_for('static', path='/styles.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <section class="workspace">
+      <header class="masthead">
+        <div>
+          <p class="eyebrow">Local document conversion</p>
+          <h1>MarkItDown Workbench</h1>
+        </div>
+        {% if result %}
+        <a class="download" href="/download/{{ result.result_id }}">Download Markdown</a>
+        {% endif %}
+      </header>
+
+      <form class="converter" method="post" action="/convert" enctype="multipart/form-data">
+        <div class="field">
+          <label for="upload">Upload file</label>
+          <input id="upload" name="upload" type="file">
+        </div>
+
+        <div class="field">
+          <label for="source_url">URL</label>
+          <input id="source_url" name="source_url" type="url" value="{{ url }}" placeholder="https://example.com/document.pdf">
+        </div>
+
+        <div class="field">
+          <label for="sample_file">Sample file</label>
+          <select id="sample_file" name="sample_file">
+            <option value="">Choose a bundled test file</option>
+            {% for sample in samples %}
+            <option value="{{ sample }}" {% if selected_sample == sample %}selected{% endif %}>{{ sample }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <label class="toggle">
+          <input name="enable_plugins" type="checkbox" value="true" {% if enable_plugins %}checked{% endif %}>
+          <span>Enable installed plugins</span>
+        </label>
+
+        <div class="actions">
+          <button type="submit">Convert automatically</button>
+        </div>
+      </form>
+
+      {% if error %}
+      <section class="notice error">
+        <h2>Conversion failed</h2>
+        <pre>{{ error }}</pre>
+      </section>
+      {% endif %}
+
+      {% if result %}
+      <section class="result">
+        <div class="result-head">
+          <div>
+            <p class="eyebrow">Result</p>
+            <h2>{{ result.title }}</h2>
+          </div>
+          <a class="secondary" href="/download/{{ result.result_id }}">Save .md</a>
+        </div>
+        <textarea readonly spellcheck="false">{{ result.markdown }}</textarea>
+      </section>
+      {% else %}
+      <section class="empty">
+        <h2>Choose a file, URL, or bundled sample.</h2>
+        <p>MarkItDown will inspect the input and select the converter for PDF, Office, HTML, images, audio, ZIP, EPUB, JSON, CSV, XML, and plain text.</p>
+      </section>
+      {% endif %}
+    </section>
+
+    <aside class="side">
+      <section>
+        <h2>Environment</h2>
+        <div class="env-list">
+          {% for item in env_keys %}
+          <div class="env-row">
+            <div>
+              <strong>{{ item.name }}</strong>
+              <p>{{ item.purpose }}</p>
+            </div>
+            <span class="pill {% if item.configured %}ok{% endif %}">
+              {% if item.configured %}set{% else %}missing{% endif %}
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section>
+        <h2>Run</h2>
+        <code>uv run examples/quick_ui.py</code>
+        <code>uv run examples/quick_ui.py --port 8766</code>
+      </section>
+    </aside>
+  </main>
+</body>
+</html>
