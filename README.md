@@ -43,6 +43,28 @@ uv run examples/quick_ui.py --port 8766
 
 ## Run The UI
 
+Recommended launcher:
+
+```bash
+./start.sh run
+```
+
+See all launcher commands:
+
+```bash
+./start.sh --help
+```
+
+Check or update optional environment variables:
+
+```bash
+./start.sh env status
+./start.sh env set OPENAI_API_KEY
+./start.sh env edit
+```
+
+Direct command:
+
 ```bash
 uv run examples/quick_ui.py
 ```
@@ -62,6 +84,8 @@ The UI lets you:
 - Enable installed plugins.
 - Preview Markdown in the browser.
 - Download the converted `.md` file.
+
+Architecture diagrams are in `mermaid.md`.
 
 ## Command Line Usage
 
