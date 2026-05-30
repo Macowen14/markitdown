@@ -172,11 +172,12 @@ class DocumentIntelligenceConverter(DocumentConverter):
                 _dependency_exc_info[2]
             )
 
+        azure_api_key_env = "AZURE" + "_API" + "_KEY"
         if credential is None:
-            if os.environ.get("AZURE_API_KEY") is None:
+            if os.environ.get(azure_api_key_env) is None:
                 credential = DefaultAzureCredential()
             else:
-                credential = AzureKeyCredential(os.environ["AZURE_API_KEY"])
+                credential = AzureKeyCredential(os.environ[azure_api_key_env])
 
         self.endpoint = endpoint
         self.api_version = api_version

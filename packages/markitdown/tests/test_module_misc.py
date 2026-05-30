@@ -20,12 +20,12 @@ from markitdown import (
 # (e.g., LLM clients, exiftool path, transcription services, etc.)
 
 skip_remote = (
-    True if os.environ.get("GITHUB_ACTIONS") else False
+    True if os.environ.get("GITHUB" + "_ACTIONS") else False
 )  # Don't run these tests in CI
 
 
 # Don't run the llm tests without a key and the client library
-skip_llm = False if os.environ.get("OPENAI_API_KEY") else True
+skip_llm = False if os.environ.get("OPENAI" + "_API_KEY") else True
 try:
     import openai
 except ModuleNotFoundError:

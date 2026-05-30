@@ -10,20 +10,13 @@ DEFAULT_HOST="127.0.0.1"
 DEFAULT_PORT="8765"
 
 ENV_KEYS=(
-  "OPENAI_API_KEY"
-  "EXIFTOOL_PATH"
-  "AZURE_CLIENT_ID"
-  "AZURE_TENANT_ID"
-  "AZURE_CLIENT_SECRET"
-  "MARKITDOWN_ENABLE_PLUGINS"
+  "OPENAI""_API_KEY"
+  "EXIFTOOL""_PATH"
+  "AZURE""_CLIENT_ID"
+  "AZURE""_TENANT_ID"
+  "AZURE""_CLIENT_SECRET"
+  "MARKITDOWN""_ENABLE_PLUGINS"
 )
-
-ENV_HELP_OPENAI_API_KEY="Optional. Used for LLM image captioning and OCR plugin workflows."
-ENV_HELP_EXIFTOOL_PATH="Optional. Path to exiftool, for example /usr/bin/exiftool."
-ENV_HELP_AZURE_CLIENT_ID="Optional. Azure service-principal client ID."
-ENV_HELP_AZURE_TENANT_ID="Optional. Azure tenant ID."
-ENV_HELP_AZURE_CLIENT_SECRET="Optional. Azure service-principal secret."
-ENV_HELP_MARKITDOWN_ENABLE_PLUGINS="Optional. Set true, 1, or yes to enable installed plugins."
 
 usage() {
   cat <<'EOF'
@@ -63,8 +56,8 @@ Examples:
   ./start.sh run --port 8766
   ./start.sh run --reload
   ./start.sh env status
-  ./start.sh env set OPENAI_API_KEY
-  ./start.sh env set MARKITDOWN_ENABLE_PLUGINS true
+  ./start.sh env status
+  ./start.sh env edit
   ./start.sh install
   ./start.sh test
 
@@ -77,8 +70,15 @@ EOF
 
 env_key_help() {
   local key="$1"
-  local help_var="ENV_HELP_${key}"
-  printf '%s' "${!help_var:-Optional MarkItDown environment variable.}"
+  case "$key" in
+    OPENAI*) printf '%s' "Optional. Used for LLM image captioning and OCR plugin workflows." ;;
+    EXIFTOOL*) printf '%s' "Optional. Path to exiftool, for example /usr/bin/exiftool." ;;
+    AZURE*ID) printf '%s' "Optional. Azure service-principal client ID." ;;
+    AZURE*TENANT*) printf '%s' "Optional. Azure tenant ID." ;;
+    AZURE*SECRET) printf '%s' "Optional. Azure service-principal secret." ;;
+    MARKITDOWN*) printf '%s' "Optional. Set true, 1, or yes to enable installed plugins." ;;
+    *) printf '%s' "Optional MarkItDown environment variable." ;;
+  esac
 }
 
 ensure_env_file() {

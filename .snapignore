@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+.venv
+.venv313
+__pycache__
+*.pyc
+.pytest_cache
+packages/markitdown/tests
+packages/markitdown-mcp
+packages/markitdown-ocr
+packages/markitdown-sample-plugin

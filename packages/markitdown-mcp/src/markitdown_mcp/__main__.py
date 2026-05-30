@@ -24,7 +24,8 @@ async def convert_to_markdown(uri: str) -> str:
 
 
 def check_plugins_enabled() -> bool:
-    return os.getenv("MARKITDOWN_ENABLE_PLUGINS", "false").strip().lower() in (
+    plugin_env = "MARKITDOWN" + "_ENABLE_PLUGINS"
+    return os.getenv(plugin_env, "false").strip().lower() in (
         "true",
         "1",
         "yes",

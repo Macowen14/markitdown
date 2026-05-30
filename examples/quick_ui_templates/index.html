@@ -20,7 +20,7 @@
         {% endif %}
       </header>
 
-      <form class="converter" method="post" action="/convert" enctype="multipart/form-data">
+      <form class="converter" method="post" action="/convert" enctype="multipart/form-data" data-convert-form>
         <div class="field">
           <label for="upload">Upload file</label>
           <input id="upload" name="upload" type="file">
@@ -46,8 +46,46 @@
           <span>Enable installed plugins</span>
         </label>
 
+        <details class="advanced">
+          <summary>Advanced options</summary>
+
+          <div class="advanced-grid">
+            <div class="field">
+              <label for="vision_key">Vision/API key</label>
+              <input id="vision_key" name="vision_key" type="password" autocomplete="off" placeholder="Only needed for vision or OCR features">
+            </div>
+
+            <div class="field">
+              <label for="vision_model">Vision model</label>
+              <input id="vision_model" name="vision_model" type="text" value="{{ vision_model }}" placeholder="gpt-4o-mini">
+            </div>
+
+            <div class="field">
+              <label for="cloud_mode">Conversion mode</label>
+              <select id="cloud_mode" name="cloud_mode">
+                <option value="local" {% if cloud_mode == "local" %}selected{% endif %}>Local conversion</option>
+                <option value="docintel" {% if cloud_mode == "docintel" %}selected{% endif %}>Azure Document Intelligence</option>
+                <option value="cu" {% if cloud_mode == "cu" %}selected{% endif %}>Azure Content Understanding</option>
+              </select>
+            </div>
+
+            <div class="field">
+              <label for="cloud_endpoint">Azure endpoint</label>
+              <input id="cloud_endpoint" name="cloud_endpoint" type="url" value="{{ cloud_endpoint }}" placeholder="https://your-resource.example.com">
+            </div>
+
+            <div class="field">
+              <label for="cloud_key">Azure API key</label>
+              <input id="cloud_key" name="cloud_key" type="password" autocomplete="off" placeholder="Only needed for Azure modes">
+            </div>
+          </div>
+        </details>
+
         <div class="actions">
-          <button type="submit">Convert automatically</button>
+          <button type="submit" data-submit-button>
+            <span data-ready-label>Convert automatically</span>
+            <span data-busy-label hidden>Converting...</span>
+          </button>
         </div>
       </form>
 
@@ -79,28 +117,20 @@
 
     <aside class="side">
       <section>
-        <h2>Environment</h2>
-        <div class="env-list">
-          {% for item in env_keys %}
-          <div class="env-row">
-            <div>
-              <strong>{{ item.name }}</strong>
-              <p>{{ item.purpose }}</p>
-            </div>
-            <span class="pill {% if item.configured %}ok{% endif %}">
-              {% if item.configured %}set{% else %}missing{% endif %}
-            </span>
-          </div>
-          {% endfor %}
-        </div>
+        <h2>Credentials</h2>
+        <p class="side-copy">Keys are optional. Add them only when you choose a feature that needs them. Values are submitted with the conversion request and are not shown in the result.</p>
       </section>
 
       <section>
-        <h2>Run</h2>
-        <code>uv run examples/quick_ui.py</code>
-        <code>uv run examples/quick_ui.py --port 8766</code>
+        <h2>Modes</h2>
+        <div class="mode-list">
+          <p><strong>Local:</strong> Uses built-in offline converters.</p>
+          <p><strong>Plugins:</strong> Enables installed MarkItDown plugins.</p>
+          <p><strong>Azure:</strong> Uses cloud conversion only when endpoint and key are provided.</p>
+        </div>
       </section>
     </aside>
   </main>
+  <script src="{{ url_for('static', path='/app.js') }}"></script>
 </body>
 </html>

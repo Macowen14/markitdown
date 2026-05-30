@@ -1,17 +1,12 @@
 #!/usr/bin/env python3
 """FastAPI web UI for local MarkItDown usage.
 
-Run from the repository root:
-
-    uv run examples/quick_ui.py
-
-Then open http://127.0.0.1:8765/.
+Run the app and open http://127.0.0.1:8765/.
 """
 
 from __future__ import annotations
 
 import argparse
-import os
 import socket
 import sys
 import tempfile
@@ -19,7 +14,7 @@ import traceback
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import uvicorn
 from fastapi import FastAPI, File, Form, Request, UploadFile
@@ -51,34 +46,6 @@ SAMPLE_FILES = [
 ]
 
 
-ENV_KEYS = [
-    {
-        "name": "OPENAI_API_KEY",
-        "purpose": "Optional. Used by LLM image captioning and OCR plugin workflows.",
-    },
-    {
-        "name": "EXIFTOOL_PATH",
-        "purpose": "Optional. Points image/audio metadata extraction at an exiftool binary.",
-    },
-    {
-        "name": "AZURE_CLIENT_ID",
-        "purpose": "Optional. Azure identity service-principal client ID.",
-    },
-    {
-        "name": "AZURE_TENANT_ID",
-        "purpose": "Optional. Azure identity tenant ID.",
-    },
-    {
-        "name": "AZURE_CLIENT_SECRET",
-        "purpose": "Optional. Azure identity service-principal secret.",
-    },
-    {
-        "name": "MARKITDOWN_ENABLE_PLUGINS",
-        "purpose": "Optional. Enables installed MarkItDown plugins when set to true/1/yes.",
-    },
-]
-
-
 @dataclass
 class ConversionResult:
     markdown: str
@@ -92,29 +59,76 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
-def env_status() -> list[dict[str, str | bool]]:
-    return [
-        {
-            "name": item["name"],
-            "purpose": item["purpose"],
-            "configured": bool(os.getenv(item["name"])),
-        }
-        for item in ENV_KEYS
-    ]
+class UserFacingConversionError(Exception):
+    """A conversion error that is safe and useful to show in the UI."""
 
 
 def sample_options() -> list[str]:
     return [name for name in SAMPLE_FILES if (SAMPLE_DIR / name).exists()]
 
 
-def convert_path(path: Path, *, source_name: str, enable_plugins: bool) -> ConversionResult:
-    converter = MarkItDown(enable_plugins=enable_plugins)
+def create_converter(
+    *,
+    enable_plugins: bool,
+    vision_key: str = "",
+    vision_model: str = "",
+    cloud_mode: str = "local",
+    cloud_endpoint: str = "",
+    cloud_key: str = "",
+) -> MarkItDown:
+    kwargs: dict[str, Any] = {"enable_plugins": enable_plugins}
+
+    if vision_key:
+        try:
+            from openai import OpenAI
+        except ImportError as exc:
+            raise UserFacingConversionError(
+                "A vision/API key was provided, but the optional OpenAI client is not installed in this deployment."
+            ) from exc
+        kwargs["llm_client"] = OpenAI(api_key=vision_key)
+        kwargs["llm_model"] = vision_model or "gpt-4o-mini"
+
+    cloud_mode = cloud_mode.strip().lower() or "local"
+    if cloud_mode != "local":
+        if not cloud_endpoint:
+            raise UserFacingConversionError(
+                "Azure conversion was selected, but no Azure endpoint was provided."
+            )
+        if not cloud_key:
+            raise UserFacingConversionError(
+                "Azure conversion was selected, but no Azure API key was provided. Use local conversion or provide a key for this request."
+            )
+        try:
+            from azure.core.credentials import AzureKeyCredential
+        except ImportError as exc:
+            raise UserFacingConversionError(
+                "Azure conversion was selected, but Azure dependencies are not installed in this deployment."
+            ) from exc
+
+        credential = AzureKeyCredential(cloud_key)
+        if cloud_mode == "docintel":
+            kwargs["docintel_endpoint"] = cloud_endpoint
+            kwargs["docintel_credential"] = credential
+        elif cloud_mode == "cu":
+            kwargs["cu_endpoint"] = cloud_endpoint
+            kwargs["cu_credential"] = credential
+        else:
+            raise UserFacingConversionError(f"Unknown conversion mode: {cloud_mode}")
+
+    return MarkItDown(**kwargs)
+
+
+def convert_path(
+    path: Path,
+    *,
+    source_name: str,
+    converter: MarkItDown,
+) -> ConversionResult:
     result = converter.convert(path)
     return save_result(result.markdown, source_name=source_name)
 
 
-def convert_url(url: str, *, enable_plugins: bool) -> ConversionResult:
-    converter = MarkItDown(enable_plugins=enable_plugins)
+def convert_url(url: str, *, converter: MarkItDown) -> ConversionResult:
     result = converter.convert(url)
     return save_result(result.markdown, source_name=url)
 
@@ -145,6 +159,9 @@ def render(
     url: str = "",
     selected_sample: str = "",
     enable_plugins: bool = False,
+    cloud_mode: str = "local",
+    cloud_endpoint: str = "",
+    vision_model: str = "gpt-4o-mini",
 ) -> HTMLResponse:
     return templates.TemplateResponse(
         request,
@@ -156,8 +173,10 @@ def render(
             "url": url,
             "selected_sample": selected_sample,
             "enable_plugins": enable_plugins,
+            "cloud_mode": cloud_mode,
+            "cloud_endpoint": cloud_endpoint,
+            "vision_model": vision_model,
             "samples": sample_options(),
-            "env_keys": env_status(),
         },
     )
 
@@ -173,11 +192,27 @@ async def convert(
     source_url: Annotated[str, Form()] = "",
     sample_file: Annotated[str, Form()] = "",
     enable_plugins: Annotated[bool, Form()] = False,
+    vision_key: Annotated[str, Form()] = "",
+    vision_model: Annotated[str, Form()] = "gpt-4o-mini",
+    cloud_mode: Annotated[str, Form()] = "local",
+    cloud_endpoint: Annotated[str, Form()] = "",
+    cloud_key: Annotated[str, Form()] = "",
     upload: Annotated[UploadFile | None, File()] = None,
 ) -> HTMLResponse:
     source_url = source_url.strip()
+    cloud_endpoint = cloud_endpoint.strip()
+    vision_model = vision_model.strip() or "gpt-4o-mini"
 
     try:
+        converter = create_converter(
+            enable_plugins=enable_plugins,
+            vision_key=vision_key.strip(),
+            vision_model=vision_model,
+            cloud_mode=cloud_mode,
+            cloud_endpoint=cloud_endpoint,
+            cloud_key=cloud_key.strip(),
+        )
+
         if upload is not None and upload.filename:
             suffix = Path(upload.filename).suffix
             with tempfile.NamedTemporaryFile(suffix=suffix) as tmp:
@@ -186,7 +221,7 @@ async def convert(
                 result = convert_path(
                     Path(tmp.name),
                     source_name=upload.filename,
-                    enable_plugins=enable_plugins,
+                    converter=converter,
                 )
             return render(
                 request,
@@ -194,16 +229,22 @@ async def convert(
                 url=source_url,
                 selected_sample=sample_file,
                 enable_plugins=enable_plugins,
+                cloud_mode=cloud_mode,
+                cloud_endpoint=cloud_endpoint,
+                vision_model=vision_model,
             )
 
         if source_url:
-            result = convert_url(source_url, enable_plugins=enable_plugins)
+            result = convert_url(source_url, converter=converter)
             return render(
                 request,
                 result=result,
                 url=source_url,
                 selected_sample=sample_file,
                 enable_plugins=enable_plugins,
+                cloud_mode=cloud_mode,
+                cloud_endpoint=cloud_endpoint,
+                vision_model=vision_model,
             )
 
         if sample_file:
@@ -213,7 +254,7 @@ async def convert(
             result = convert_path(
                 sample_path,
                 source_name=sample_file,
-                enable_plugins=enable_plugins,
+                converter=converter,
             )
             return render(
                 request,
@@ -221,20 +262,57 @@ async def convert(
                 url=source_url,
                 selected_sample=sample_file,
                 enable_plugins=enable_plugins,
+                cloud_mode=cloud_mode,
+                cloud_endpoint=cloud_endpoint,
+                vision_model=vision_model,
             )
 
         raise ValueError("Choose an upload, URL, or sample file.")
     except BrokenPipeError:
         raise
-    except Exception as exc:
-        traceback.print_exc()
+    except UserFacingConversionError as exc:
         return render(
             request,
             error=str(exc),
             url=source_url,
             selected_sample=sample_file,
             enable_plugins=enable_plugins,
+            cloud_mode=cloud_mode,
+            cloud_endpoint=cloud_endpoint,
+            vision_model=vision_model,
         )
+    except Exception as exc:
+        traceback.print_exc()
+        return render(
+            request,
+            error=friendly_error_message(exc),
+            url=source_url,
+            selected_sample=sample_file,
+            enable_plugins=enable_plugins,
+            cloud_mode=cloud_mode,
+            cloud_endpoint=cloud_endpoint,
+            vision_model=vision_model,
+        )
+
+
+def friendly_error_message(exc: Exception) -> str:
+    message = str(exc)
+    lower_message = message.lower()
+
+    if "defaultazurecredential" in lower_message or "azure" in lower_message:
+        return (
+            "Azure conversion could not authenticate. Use local conversion, or provide an Azure endpoint and API key for this request."
+        )
+
+    if "api key" in lower_message and "openai" in lower_message:
+        return (
+            "This conversion needs an OpenAI-compatible API key. Add it in Advanced options for this request, or convert without the feature that requires it."
+        )
+
+    if "no module named 'openai'" in lower_message:
+        return "The OpenAI client is not installed in this deployment, so vision/OCR features are unavailable."
+
+    return message or "Conversion failed. Check the selected file, URL, and optional settings."
 
 
 @app.get("/download/{result_id}")

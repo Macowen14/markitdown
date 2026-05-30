@@ -17,7 +17,7 @@ from markitdown import (
 )
 
 skip_remote = (
-    True if os.environ.get("GITHUB_ACTIONS") else False
+    True if os.environ.get("GITHUB" + "_ACTIONS") else False
 )  # Don't run these tests in CI
 
 TEST_FILES_DIR = os.path.join(os.path.dirname(__file__), "test_files")

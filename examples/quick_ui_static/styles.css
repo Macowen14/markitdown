@@ -127,6 +127,30 @@ input[type="file"] {
   justify-content: flex-end;
 }
 
+.advanced {
+  grid-column: 1 / -1;
+  border: 1px solid #d8dee7;
+  border-radius: 8px;
+  padding: 12px;
+  background: #f8fafc;
+}
+
+.advanced summary {
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 14px;
+}
+
+.advanced-grid .field:last-child {
+  grid-column: 1 / -1;
+}
+
 button,
 .download,
 .secondary {
@@ -149,6 +173,11 @@ button:hover,
 .download:hover,
 .secondary:hover {
   background: #115e59;
+}
+
+button:disabled {
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .secondary {
@@ -175,7 +204,9 @@ textarea {
 }
 
 .empty p,
-.env-row p {
+.env-row p,
+.side-copy,
+.mode-list p {
   margin: 6px 0 0;
   color: #667085;
   line-height: 1.45;
@@ -260,6 +291,10 @@ code {
   }
 
   .converter {
+    grid-template-columns: 1fr;
+  }
+
+  .advanced-grid {
     grid-template-columns: 1fr;
   }
 

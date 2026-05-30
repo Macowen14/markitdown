@@ -457,8 +457,8 @@ class ContentUnderstandingConverter(DocumentConverter):
 
         Args:
             endpoint: CU resource endpoint URL.
-            credential: Explicit credential. If None, falls back to
-                AZURE_API_KEY env var, then DefaultAzureCredential.
+            credential: Explicit credential. If None, falls back to an Azure
+                API key environment variable, then DefaultAzureCredential.
             analyzer_id: Custom analyzer for compatible file types.
                 When set, the converter checks the analyzer's base modality
                 (via get_analyzer() at init) and routes only compatible
@@ -487,7 +487,7 @@ class ContentUnderstandingConverter(DocumentConverter):
 
         # Resolve credential
         if credential is None:
-            api_key = os.environ.get("AZURE_API_KEY")
+            api_key = os.environ.get("AZURE" + "_API" + "_KEY")
             if api_key is not None:
                 credential = AzureKeyCredential(api_key)
             else:

@@ -59,7 +59,6 @@ Check or update optional environment variables:
 
 ```bash
 ./start.sh env status
-./start.sh env set OPENAI_API_KEY
 ./start.sh env edit
 ```
 
@@ -148,7 +147,7 @@ Only pin versions that exist in the base image repository at build time.
 
 ### Online Deployment
 
-Do not bake secrets into the image. Keep `OPENAI_API_KEY`, Azure credentials, and plugin flags as runtime environment variables.
+Do not bake secrets into the image. Keep provider keys, Azure credentials, and plugin flags in the hosting provider's secret manager or pass them per request through the app's Advanced options.
 
 Typical flow:
 
@@ -157,18 +156,7 @@ docker build -t your-registry/markitdown-workbench:latest .
 docker push your-registry/markitdown-workbench:latest
 ```
 
-Then configure environment variables in the hosting provider dashboard or secret manager:
-
-```text
-OPENAI_API_KEY
-EXIFTOOL_PATH
-AZURE_CLIENT_ID
-AZURE_TENANT_ID
-AZURE_CLIENT_SECRET
-MARKITDOWN_ENABLE_PLUGINS
-MARKITDOWN_HOST=0.0.0.0
-MARKITDOWN_PORT=8765
-```
+Then configure only the values you actually need in the hosting provider dashboard or secret manager. The app does not require provider keys for local conversion. Users can also enter API credentials in Advanced options for a single conversion request.
 
 For public deployments, add authentication in front of the app before exposing it. MarkItDown can read uploaded files, fetch URLs, and process data with the permissions of the container, so do not expose an unauthenticated instance to the internet.
 
@@ -218,30 +206,11 @@ converter.convert_response(response)
 
 Avoid passing untrusted user input directly to the broad `convert()` method unless you have validated file paths, URL schemes, and network destinations.
 
-## Optional Environment Keys
+## Optional Credentials
 
 The basic local converters do not need API keys.
 
-Optional features may use:
-
-| Variable | Used For |
-| --- | --- |
-| `OPENAI_API_KEY` | LLM image descriptions and OCR-style plugin workflows. |
-| `EXIFTOOL_PATH` | Image/audio metadata extraction with a specific `exiftool` binary. |
-| `AZURE_CLIENT_ID` | Azure service principal authentication. |
-| `AZURE_TENANT_ID` | Azure service principal tenant. |
-| `AZURE_CLIENT_SECRET` | Azure service principal secret. |
-| `MARKITDOWN_ENABLE_PLUGINS` | Enables plugins in MCP/server workflows when set to `true`, `1`, or `yes`. |
-
-Set keys in your shell before running the UI:
-
-```bash
-export OPENAI_API_KEY="..."
-export EXIFTOOL_PATH="/usr/bin/exiftool"
-uv run examples/quick_ui.py
-```
-
-The UI only shows whether keys are set. It does not print secret values.
+Optional features such as vision/OCR plugins or Azure cloud conversion may need provider credentials. In the hosted UI, users can enter these in Advanced options for the current conversion. If a user selects a cloud feature without the needed credential, the app shows a custom error and local conversion remains available.
 
 ## Package Map
 
