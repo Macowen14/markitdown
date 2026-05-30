@@ -20,14 +20,14 @@ The goal is simple: drop in a PDF, Office document, HTML page, image, audio file
 
 This project should run in a virtual environment. Do not install into the system Python on Debian, Parrot, Kali, Ubuntu, or other PEP 668-managed systems.
 
-Using the existing `uv` environment:
+Recommended setup:
 
 ```bash
 cd /home/macowenk/Desktop/tools/markitdown
-source .venv/bin/activate
-uv pip install --python .venv/bin/python -e 'packages/markitdown[all]'
-uv pip install --python .venv/bin/python fastapi uvicorn python-multipart jinja2
+./start.sh install
 ```
+
+The launcher creates `.venv` automatically. If `uv` is available it uses `uv venv` and `uv pip`; otherwise it falls back to `python3 -m venv` and `pip`.
 
 If port `8765` is already in use:
 

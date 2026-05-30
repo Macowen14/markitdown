@@ -4,6 +4,8 @@ set -euo pipefail
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 EXAMPLES_DIR="$PROJECT_ROOT/examples"
 ENV_FILE="$PROJECT_ROOT/.env"
+VENV_DIR="$PROJECT_ROOT/.venv"
+REQUIREMENTS_FILE="$PROJECT_ROOT/requirements.txt"
 DEFAULT_HOST="127.0.0.1"
 DEFAULT_PORT="8765"
 
@@ -35,7 +37,7 @@ Common commands:
       Start the FastAPI UI. This changes into examples/ and runs quick_ui.py.
 
   install
-      Install MarkItDown, FastAPI UI dependencies, and pytest into .venv with uv.
+      Create .venv if needed, install MarkItDown, then install requirements.txt.
 
   env status
       Show which optional environment variables are set, without printing secrets.
@@ -100,24 +102,54 @@ load_env() {
 }
 
 python_bin() {
-  if [[ -x "$PROJECT_ROOT/.venv/bin/python" ]]; then
-    printf '%s\n' "$PROJECT_ROOT/.venv/bin/python"
-  elif [[ -x "$PROJECT_ROOT/.venv313/bin/python" ]]; then
-    printf '%s\n' "$PROJECT_ROOT/.venv313/bin/python"
-  elif command -v python3 >/dev/null 2>&1; then
+  ensure_venv
+  printf '%s\n' "$VENV_DIR/bin/python"
+}
+
+has_uv() {
+  if command -v uv >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
+uv_bin() {
+  command -v uv
+}
+
+bootstrap_python() {
+  if command -v python3 >/dev/null 2>&1; then
     command -v python3
+  elif command -v python >/dev/null 2>&1; then
+    command -v python
   else
-    echo "Could not find Python. Run ./start.sh install after creating a venv." >&2
+    echo "Could not find python3 or python to create .venv." >&2
     exit 1
   fi
 }
 
-uv_bin() {
-  if command -v uv >/dev/null 2>&1; then
-    command -v uv
+ensure_venv() {
+  if [[ -x "$VENV_DIR/bin/python" ]]; then
+    return 0
+  fi
+
+  echo "Creating virtual environment at $VENV_DIR"
+  if has_uv; then
+    "$(uv_bin)" venv "$VENV_DIR"
   else
-    echo "uv is required for install. Install uv first, or run the .venv Python directly." >&2
-    exit 1
+    "$(bootstrap_python)" -m venv "$VENV_DIR"
+    "$VENV_DIR/bin/python" -m ensurepip --upgrade >/dev/null 2>&1 || true
+  fi
+}
+
+install_with_pip() {
+  local python="$1"
+  shift
+
+  if has_uv; then
+    "$(uv_bin)" pip install --python "$python" "$@"
+  else
+    "$python" -m pip install "$@"
   fi
 }
 
@@ -213,16 +245,42 @@ edit_env() {
 }
 
 install_deps() {
-  local uv python
-  uv="$(uv_bin)"
+  local python
+  ensure_venv
   python="$(python_bin)"
-  "$uv" pip install --python "$python" -e "$PROJECT_ROOT/packages/markitdown[all]"
-  "$uv" pip install --python "$python" fastapi uvicorn python-multipart jinja2 pytest
+
+  if ! has_uv; then
+    "$python" -m ensurepip --upgrade >/dev/null 2>&1 || true
+    "$python" -m pip install --upgrade pip
+  fi
+
+  echo "Installing local MarkItDown package..."
+  install_with_pip "$python" -e "$PROJECT_ROOT/packages/markitdown[all]"
+
+  if [[ -f "$REQUIREMENTS_FILE" ]]; then
+    echo "Installing requirements from $REQUIREMENTS_FILE..."
+    install_with_pip "$python" -r "$REQUIREMENTS_FILE"
+  else
+    echo "No requirements.txt found; skipping requirements install."
+  fi
+}
+
+ensure_runtime() {
+  local python
+  python="$(python_bin)"
+
+  if "$python" -c "import markitdown, fastapi, uvicorn, jinja2" >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "Runtime dependencies are missing. Running ./start.sh install first..."
+  install_deps
 }
 
 run_ui() {
   load_env
   local python
+  ensure_runtime
   python="$(python_bin)"
 
   cd "$EXAMPLES_DIR"
@@ -231,6 +289,7 @@ run_ui() {
 
 run_tests() {
   local python
+  ensure_runtime
   python="$(python_bin)"
   "$python" -m py_compile "$PROJECT_ROOT/examples/quick_ui.py"
   "$python" -m pytest "$PROJECT_ROOT/packages/markitdown/tests/test_module_misc.py::test_plain_text_falls_back_from_incorrect_ascii_hint"
