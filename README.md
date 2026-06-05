@@ -23,7 +23,7 @@ This project should run in a virtual environment. Do not install into the system
 Recommended setup:
 
 ```bash
-cd /home/macowenk/Desktop/tools/markitdown
+cd markitdown
 ./start.sh install
 ```
 
